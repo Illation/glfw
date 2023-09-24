@@ -55,8 +55,13 @@ static DWORD getWindowStyle(const _GLFWwindow* window)
             if (window->resizable)
                 style |= WS_MAXIMIZEBOX | WS_THICKFRAME;
         }
-        else
+		else
+		{
             style |= WS_POPUP;
+
+			if (window->resizable)
+				style |= WS_MAXIMIZEBOX | WS_THICKFRAME;
+		}
     }
 
     return style;
@@ -1289,36 +1294,47 @@ static LRESULT CALLBACK windowProc(HWND hWnd, UINT uMsg,
 
             POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
             ScreenToClient(hWnd, &pt);
-            RECT rc;
-            GetClientRect(hWnd, &rc);
 
             int titlebarHittest = 0;
             _glfwInputTitleBarHitTest(window, pt.x, pt.y, &titlebarHittest);
 
-            if (titlebarHittest)
-            {
-                return HTCAPTION;
-            }
-            else
-            {
-                enum { left = 1, top = 2, right = 4, bottom = 8 };
-                int hit = 0;
-                if (pt.x < border_thickness.left)               hit |= left;
-                if (pt.x > rc.right - border_thickness.right)   hit |= right;
-                if (pt.y < border_thickness.top)                hit |= top;
-                if (pt.y > rc.bottom - border_thickness.bottom) hit |= bottom;
+			if (!_glfwWindowMaximizedWin32(window))
+			{
+				enum
+				{
+					left = 1, top = 2, right = 4, bottom = 8,
+					topleft = 3, topright = 6, bottomleft = 9, bottomright = 12
+				};
 
-                if (hit & top && hit & left)        return HTTOPLEFT;
-                if (hit & top && hit & right)       return HTTOPRIGHT;
-                if (hit & bottom && hit & left)     return HTBOTTOMLEFT;
-                if (hit & bottom && hit & right)    return HTBOTTOMRIGHT;
-                if (hit & left)                     return HTLEFT;
-                if (hit & top)                      return HTTOP;
-                if (hit & right)                    return HTRIGHT;
-                if (hit & bottom)                   return HTBOTTOM;
+				RECT rc;
+				GetClientRect(hWnd, &rc);
 
-                return HTCLIENT;
-            }
+				int hit = 0;
+				if (pt.x < border_thickness.left)               hit |= left;
+				if (pt.x > rc.right - border_thickness.right)   hit |= right;
+				if (pt.y < border_thickness.top)                hit |= top;
+				if (pt.y > rc.bottom - border_thickness.bottom) hit |= bottom;
+
+				switch (hit)
+				{
+				case left: return HTLEFT;
+				case top: return HTTOP;
+				case right: return HTRIGHT;
+				case bottom: return HTBOTTOM;
+
+				case topleft: return HTTOPLEFT;
+				case topright: return HTTOPRIGHT;
+				case bottomleft: return HTBOTTOMLEFT;
+				case bottomright: return HTBOTTOMRIGHT;
+				}
+			}
+
+			if (titlebarHittest)
+			{
+				return HTCAPTION;
+			}
+
+			return HTCLIENT;
         }
     }
 
